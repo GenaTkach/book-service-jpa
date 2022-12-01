@@ -1,6 +1,5 @@
 package telran.java2022.book.service;
 
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -60,8 +59,6 @@ public class BookServiceImpl implements BookService {
 	Book book = bookRepository.findById(isbn)
 		.orElseThrow(() -> new EntityNotFoundException());
 	BookDto bookDto = mapper.map(book, BookDto.class);
-	bookDto.setPublisher(book.getPublisher()
-		.getPublisherName());
 	return bookDto;
     }
 
@@ -71,8 +68,6 @@ public class BookServiceImpl implements BookService {
 	Book book = bookRepository.findById(isbn)
 		.orElseThrow(() -> new EntityNotFoundException());
 	BookDto bookDto = mapper.map(book, BookDto.class);
-	bookDto.setPublisher(book.getPublisher()
-		.getPublisherName());
 	bookRepository.deleteById(isbn);
 	return bookDto;
     }
@@ -83,39 +78,38 @@ public class BookServiceImpl implements BookService {
 		.orElseThrow(() -> new EntityNotFoundException());
 	book.setTitle(title);
 	BookDto bookDto = mapper.map(book, BookDto.class);
-	bookDto.setPublisher(book.getPublisher()
-		.getPublisherName());
 	return bookDto;
     }
 
     @Override
-    @Transactional(readOnly = true)
+//    @Transactional(readOnly = true)
     public Iterable<BookDto> findBooksByAuthor(String authorName) {
-	List<Book> books = bookRepository.findBooksByAuthorsName(authorName)
-		.collect(Collectors.toList());
-	List<BookDto> booksDto = bookRepository.findBooksByAuthorsName(authorName)
+//	return bookRepository.findBooksByAuthorsName(authorName)
+//		.map(b -> mapper.map(b, BookDto.class))
+//		.collect(Collectors.toList());
+	Author author = authorRepository.findById(authorName)
+		.orElseThrow(EntityNotFoundException::new);
+	return author.getBooks()
+		.stream()
 		.map(b -> mapper.map(b, BookDto.class))
 		.collect(Collectors.toList());
-
-	// Добавление к каждому BookDto название publisher.
-	return addToDtosPublisherName(books, booksDto);
     }
 
     @Override
-    @Transactional(readOnly = true)
+//    @Transactional(readOnly = true)
     public Iterable<BookDto> findBooksByPublisher(String publisherName) {
-	List<Book> books = bookRepository.findBooksByPublisherPublisherName(publisherName)
-		.collect(Collectors.toList());
-	List<BookDto> booksDto = bookRepository.findBooksByPublisherPublisherName(publisherName)
+//	return bookRepository.findBooksByPublisherPublisherName(publisherName)
+//		.map(b -> mapper.map(b, BookDto.class))
+//		.collect(Collectors.toList());
+	Publisher publisher = publisherRepository.findById(publisherName)
+		.orElseThrow(EntityNotFoundException::new);
+	return publisher.getBooks()
+		.stream()
 		.map(b -> mapper.map(b, BookDto.class))
 		.collect(Collectors.toList());
-
-	// Добавление к каждому BookDto название publisher.
-	return addToDtosPublisherName(books, booksDto);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Iterable<AuthorDto> findAuthorsByBook(String isbn) {
 	Book book = bookRepository.findById(isbn)
 		.orElseThrow(() -> new EntityNotFoundException());
@@ -128,10 +122,19 @@ public class BookServiceImpl implements BookService {
     @Override
     @Transactional(readOnly = true)
     public Iterable<String> findPublishersByAuthor(String authorName) {
-	return bookRepository.findBooksByAuthorsName(authorName)
-		.map(b -> b.getPublisher()
-			.getPublisherName())
-		.collect(Collectors.toSet());
+	// 1 Way
+//	return bookRepository.findBooksByAuthorsName(authorName)
+//		.map(b -> b.getPublisher()
+//			.getPublisherName())
+//		.collect(Collectors.toSet());
+
+	// 2 Way
+//	return publisherRepository.findPublishersByAuthor(authorName);
+
+	// 3 Way
+	return publisherRepository.findDistinctByBooksAuthorsName(authorName)
+		.map(Publisher::getPublisherName)
+		.collect(Collectors.toList());
     }
 
     @Override
@@ -141,33 +144,28 @@ public class BookServiceImpl implements BookService {
 	Author author = authorRepository.findById(name)
 		.orElseThrow(() -> new EntityNotFoundException());
 
-	// Удалить все книги связанные с этим автором
-	bookRepository.deleteAll(bookRepository.findBooksByAuthorsName(name)
-		.collect(Collectors.toList()));
+//	 Удалить все книги связанные с этим автором
+//	bookRepository.deleteAll(bookRepository.findBooksByAuthorsName(name)
+//		.collect(Collectors.toList()));
+//	bookRepository.findBooksByAuthorsName(name)
+//		.forEach(b -> bookRepository.delete(b));
+
 	// Если publisher выпускал только книги удаленного автора, то удалить publisher
-	List<Book> books = (List<Book>) bookRepository.findAll();
-	List<String> publishers = books.stream()
-		.distinct()
-		.map(b -> b.getPublisher()
-			.getPublisherName())
-		.collect(Collectors.toList());
-	for (int i = 0; i < publishers.size(); i++) {
-	    if (bookRepository.findBooksByPublisherPublisherName(publishers.get(i)) == null) {
-		publisherRepository.deleteById(publishers.get(i));
-	    }
-	}
+//	List<Book> books = (List<Book>) bookRepository.findAll();
+//	List<String> publishers = books.stream()
+//		.distinct()
+//		.map(b -> b.getPublisher()
+//			.getPublisherName())
+//		.collect(Collectors.toList());
+//	for (int i = 0; i < publishers.size(); i++) {
+//	    if (bookRepository.findBooksByPublisherPublisherName(publishers.get(i)) == null) {
+//		publisherRepository.deleteById(publishers.get(i));
+//	    }
+//	}
+
 	// Удаление автора
 	authorRepository.delete(author);
 	return mapper.map(author, AuthorDto.class);
     }
 
-    private Iterable<BookDto> addToDtosPublisherName(List<Book> books, List<BookDto> booksDto) {
-	for (int i = 0; i < books.size(); i++) {
-	    booksDto.get(i)
-		    .setPublisher(books.get(i)
-			    .getPublisher()
-			    .getPublisherName());
-	}
-	return booksDto;
-    }
 }
